@@ -37,7 +37,7 @@ public class UserController {
 
     // GET metoda za user-a path: /users/{id} -> status 200 OK + userdto ili baca 404
     @GetMapping("/{id}")
-    public ResponseEntity<UserDTO> getById(@PathVariable Long id) {
+    public ResponseEntity<UserDTO> getById(@PathVariable("id") Long id) {
         return userRepository.findById(id).map(user -> ResponseEntity.ok(toDto(user))).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
