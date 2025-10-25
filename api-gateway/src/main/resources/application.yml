@@ -1,10 +1,9 @@
 spring:
   application:
-    name: api-geateway
+    name: api-gateway
 
 server:
   port: 8085
-
 
 eureka:
   client:
@@ -15,4 +14,4 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info
+        include: health,info
