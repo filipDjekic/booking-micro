@@ -12,6 +12,13 @@ spring:
           filters:
             - StripPrefix=1
 
+        - id: bookings-route
+          uri: lb://BOOKINGS-SERVICE
+          predicates:
+            - Path=/api/bookings/**
+          filters:
+            - StripPrefix=1
+
 server:
   port: 8085
 
