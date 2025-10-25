@@ -25,16 +25,16 @@ public class BookingController {
 
     //Post metoda, ist kao i za user-a, vraca druge stvari samo
     @PostMapping
-    public ResponseEntity<BookingResponse> create(@Valid @RequestBody BookingRequest request, UriComponentsBuilder uriBuilder) {
-        LocalDateTime start = request.getStart();
+    public ResponseEntity<BookingResponse> create(@Valid @RequestBody BookingRequest input, UriComponentsBuilder uriBuilder) {
+        LocalDateTime start = input.getStart();
         LocalDateTime end = start.plusDays(7);
 
         Booking booking = new Booking();
         booking.setStart(start);
         booking.setEnd(end);
-        booking.setUserId(request.getUserId());
-        booking.setResourceName(request.getResourceName());
-        booking.setPrice(request.getPrice());
+        booking.setUserId(input.getUserId());
+        booking.setResourceName(input.getResourceName());
+        booking.setPrice(input.getPrice());
 
         Booking saved = bookingRepository.save(booking);
 
