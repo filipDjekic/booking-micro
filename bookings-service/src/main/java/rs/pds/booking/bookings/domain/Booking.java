@@ -25,7 +25,7 @@ public class Booking {
     @NotNull
     private LocalDateTime start;
 
-    @NotNull;
+    @NotNull
     private LocalDateTime end;
 
     @NotNull
