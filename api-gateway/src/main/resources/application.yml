@@ -2,6 +2,16 @@ spring:
   application:
     name: api-gateway
 
+  cloud:
+    gateway:
+      routes:
+        - id: users-route
+          uri: lb://USERS-SERVICE
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - StripPrefix=1
+
 server:
   port: 8085
 
