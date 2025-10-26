@@ -6,9 +6,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 import rs.pds.booking.bookings.domain.Booking;
+import rs.pds.booking.bookings.dto.BookingDetails;
 import rs.pds.booking.bookings.dto.BookingRequest;
 import rs.pds.booking.bookings.dto.BookingResponse;
 import rs.pds.booking.bookings.repository.BookingRepository;
+import rs.pds.booking.bookings.service.BookingService;
 
 import java.net.URI;
 import java.time.LocalDateTime;
@@ -18,9 +20,11 @@ import java.time.LocalDateTime;
 public class BookingController {
 
     private final BookingRepository bookingRepository;
+    private final BookingService bookingService;
 
-    public BookingController(BookingRepository bookingRepository) {
+    public BookingController(BookingRepository bookingRepository, BookingService bookingService) {
         this.bookingRepository = bookingRepository;
+        this.bookingService = bookingService;
     }
 
     //Post metoda, ist kao i za user-a, vraca druge stvari samo
@@ -47,6 +51,17 @@ public class BookingController {
     @GetMapping("/{id}")
     public ResponseEntity<BookingResponse> get(@PathVariable("id") long id) {
         return bookingRepository.findById(id).map(b -> ResponseEntity.ok(toResponse(b))).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    //GET Detalji
+    @GetMapping("/{id}/details")
+    public ResponseEntity<BookingDetails> details(@PathVariable("id") Long id) {
+        try {
+            BookingDetails details = bookingService.getDetails(id);
+            return ResponseEntity.ok(details);
+        } catch (IllegalArgumentException notFound) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     //helperi
