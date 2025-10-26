@@ -45,7 +45,7 @@ public class BookingController {
 
     //Get metoda
     @GetMapping("/{id}")
-    public ResponseEntity<BookingResponse> get(@PathVariable long id) {
+    public ResponseEntity<BookingResponse> get(@PathVariable("id") long id) {
         return bookingRepository.findById(id).map(b -> ResponseEntity.ok(toResponse(b))).orElseGet(() -> ResponseEntity.notFound().build());
     }
 

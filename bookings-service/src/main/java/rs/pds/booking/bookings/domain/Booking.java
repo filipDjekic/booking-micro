@@ -15,7 +15,9 @@ public class Booking {
     private Long id;
 
     @NotBlank
-    private long userId;
+    @Positive
+    @Column(nullable = false)
+    private Long userId;
 
     @NotBlank
     @Size(min = 2, max = 50)
@@ -23,9 +25,11 @@ public class Booking {
     private String resourceName;
 
     @NotNull
+    @Column(name = "start_time", nullable = false)
     private LocalDateTime start;
 
     @NotNull
+    @Column(name = "end_time", nullable = false)
     private LocalDateTime end;
 
     @NotNull
@@ -56,7 +60,7 @@ public class Booking {
     public void setId(Long id) {
         this.id = id;
     }
-    public void setUserId(long userId) {
+    public void setUserId(Long userId) {
         this.userId = userId;
     }
     public void setResourceName(String resourceName) {
