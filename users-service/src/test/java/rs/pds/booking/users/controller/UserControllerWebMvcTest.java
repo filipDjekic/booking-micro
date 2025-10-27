@@ -39,7 +39,7 @@ public class UserControllerWebMvcTest {
         user.setEmail("ana@example.com");
         Mockito.when(userRepository.save(Mockito.any(User.class))).thenReturn(user);
 
-        mvc.perform(post("/users").contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(userRequest))).andExpect(status().isCreated()).andExpect(header().string("Location", "/users/1")).andExpect(jsonPath("$.id").value(1)).andExpect(jsonPath("$.email").value("ana@example.com"));
+        mvc.perform(post("/users").contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(userRequest))).andExpect(status().isCreated()).andExpect(header().string("Location", "http://localhost/users/1")).andExpect(jsonPath("$.id").value(1)).andExpect(jsonPath("$.email").value("ana@example.com"));
     }
 
     @Test
@@ -59,7 +59,7 @@ public class UserControllerWebMvcTest {
         UserRequest userRequest = new UserRequest();
         userRequest.setName("Ana");
         userRequest.setPassword("sifra123");
-        userRequest.setEmail("ana@example.com");
+        userRequest.setEmail("palmaumro");
 
         mvc.perform(post("/users").contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(userRequest))).andExpect(status().isBadRequest());
     }

@@ -39,7 +39,7 @@ public class BookingService {
 
         Booking b = bookingRepository.findById(bookingId).orElseThrow(() -> new IllegalArgumentException("Booking " + bookingId + " nije pronadjen."));
 
-        UserSummary user = new UserSummary(null, "NEMA", "NeMa");
+        UserSummary user = new UserSummary(null, "UNAVAILABLE", "unavailable@local");
 
         return new BookingDetails(b.getId(), b.getUserId(), b.getResourceName(), b.getStart(), b.getEnd(), b.getPrice(), user);
     }
