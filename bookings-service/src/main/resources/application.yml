@@ -62,3 +62,9 @@ management:
     web:
       exposure:
         include: health,info
+
+logging:
+  level:
+    root: info
+    org.springframework.cloud.openfeign: debug
+    io.github.resilience4j: debug
