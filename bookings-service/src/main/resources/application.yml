@@ -6,8 +6,13 @@ spring:
       client:
         config:
           default:
-            connectionTimeout: 2000
+            connectTimeout: 2000
             readTimeout: 3000
+  datasource:
+    url: jdbc:h2:mem:bazadb; #DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver #jdbc:h2:mem:bookingsdb
+    username: cofi
+    password: sifra123
 
 resilience4j:
   circuitbreaker:
@@ -15,26 +20,19 @@ resilience4j:
       usersClient:
         slidingWindowSize: 10
         minimumNumberOfCalls: 5
-        failureRateThreshold:
-          waitDurationInOpenState: 10s
-          permittedNumberOfCallsInHalfOpenState: 3
-          automaticTransitionFromOpenToHalfOpenEnabled: true
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
   retry:
     instances:
       usersClient:
         maxAttempts: 3
         waitDuration: 300ms
-        retryExceptins:
+        retryExceptions:
           - feign.RetryableException
           - java.io.IOException
           - java.net.SocketTimeoutException
-
-
-  datasource:
-    url: jdbc:h2:mem:bazadb; #DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver #jdbc:h2:mem:bookingsdb
-    username: cofi
-    password: sifra123
 
   jpa:
     hibernate:

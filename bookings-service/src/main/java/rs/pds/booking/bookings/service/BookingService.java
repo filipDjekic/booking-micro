@@ -24,7 +24,7 @@ public class BookingService {
         this.userClient = userClient;
     }
 
-    @CircuitBreaker(name="usersCleint", fallbackMethod = "getDetailsFallback")
+    @CircuitBreaker(name="usersClient", fallbackMethod = "getDetailsFallback")
     @Retry(name="usersClient")
     public BookingDetails getDetails(Long bookingId){
         Booking b =  bookingRepository.findById(bookingId).orElseThrow(() -> new IllegalArgumentException("Booking po ID-ju nije nadjen (ID: "+bookingId+")"));

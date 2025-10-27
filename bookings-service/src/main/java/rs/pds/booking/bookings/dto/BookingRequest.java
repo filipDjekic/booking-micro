@@ -10,7 +10,7 @@ public class BookingRequest {
     private Long userId;
 
     @NotNull
-    @Size(min = 2, max = 20)
+    @Size(min = 2, max = 50)
     private String resourceName;
 
     @NotNull

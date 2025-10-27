@@ -14,7 +14,7 @@ public class User {
     private Long id;
 
     @NotBlank
-    @Size(min = 2, max = 60)
+    @Size(min = 2, max = 20)
     @Column(nullable = false, length = 20)
     private String name;
 

@@ -15,7 +15,7 @@ public class UserRequest {
     private String email;
 
     @NotBlank
-    @Size(min = 6, max = 100)
+    @Size(min = 6, max = 20)
     private String password;
 
     // getter-i i setter-i
