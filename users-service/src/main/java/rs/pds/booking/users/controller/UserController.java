@@ -60,12 +60,15 @@ public class UserController {
         return ResponseEntity.ok(list);
     }
 
-    // PUT /users/{id}
+    // PUT (update)
     @GetMapping
-    public ResponseEntity<UserResponse> update(@PathVariable("id") Long id, @Valid @RequestBody UserRequest input){
-        User postojeci = userRepository.findById(id).orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User nije pronadjen"));
+    public ResponseEntity<UserResponse> update(@PathVariable("id") Long id,
+                                               @Valid @RequestBody UserRequest input){
+        var postojeci = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User nije pronadjen"));
 
-        if(!postojeci.getEmail().equalsIgnoreCase(input.getEmail()) && userRepository.existsByEmailAndIdNot(postojeci.getEmail(), id)){
+        if(!postojeci.getEmail().equalsIgnoreCase(input.getEmail())
+                && userRepository.existsByEmailAndIdNot(input.getEmail(), id)){
             throw new ResponseStatusException(CONFLICT, "Email se vec koristi.");
         }
 
@@ -73,7 +76,7 @@ public class UserController {
         postojeci.setEmail(input.getEmail());
         postojeci.setPassword(input.getPassword());
 
-        User updated = userRepository.save(postojeci);
+        var updated = userRepository.save(postojeci);
         return ResponseEntity.ok(toResponse(updated));
     }
 
