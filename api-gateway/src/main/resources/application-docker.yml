@@ -1,0 +1,34 @@
+server:
+  port: ${SERVER_PORT:8085}
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: users
+          uri: lb://USERS-SERVICE
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - StripPrefix=1
+        - id: bookings
+          uri: lb://BOOKINGS-SERVICE
+          predicates:
+            - Path=/api/bookings/**
+          filters:
+            - StripPrefix=1
+eureka:
+  client:
+    service-url:
+      defaultZone: http://discovery-service:8761/eureka
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

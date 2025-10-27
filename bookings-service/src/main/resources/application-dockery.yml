@@ -1,0 +1,60 @@
+server:
+  port: ${SERVER_PORT:8082}
+
+spring:
+  application:
+    name: bookings-service
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: 2000
+            readTimeout: 3000
+  datasource:
+    url: jdbc:h2:mem:bazadb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: cofi
+    password: sifra123
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  h2:
+    console:
+      enabled: true
+      path: /h2
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://discovery-service:8761/eureka
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      usersClient:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+  retry:
+    instances:
+      usersClient:
+        maxAttempts: 3
+        waitDuration: 300ms
+        retryExceptions:
+          - feign.RetryableException
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
