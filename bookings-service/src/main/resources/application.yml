@@ -1,6 +1,7 @@
 spring:
   application:
     name: bookings-service
+
   cloud:
     openfeign:
       client:
@@ -8,11 +9,25 @@ spring:
           default:
             connectTimeout: 2000
             readTimeout: 3000
+
   datasource:
-    url: jdbc:h2:mem:bazadb; #DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
-    driver-class-name: org.h2.Driver #jdbc:h2:mem:bookingsdb
+    url: jdbc:h2:mem:bazadb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
     username: cofi
     password: sifra123
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  h2:
+    console:
+      enabled: true
+      path: /h2
 
 resilience4j:
   circuitbreaker:
@@ -33,19 +48,6 @@ resilience4j:
           - feign.RetryableException
           - java.io.IOException
           - java.net.SocketTimeoutException
-
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
-
-  h2:
-    console:
-      enabled: true
-      path: /h2
 
 server:
   port: 8082
