@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.UriComponentsBuilder;
 import rs.pds.booking.bookings.domain.Booking;
 import rs.pds.booking.bookings.dto.BookingDetails;
@@ -14,6 +15,9 @@ import rs.pds.booking.bookings.service.BookingService;
 
 import java.net.URI;
 import java.time.LocalDateTime;
+import java.util.List;
+
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @RestController
 @RequestMapping("/bookings")
@@ -62,6 +66,37 @@ public class BookingController {
         } catch (IllegalArgumentException notFound) {
             return ResponseEntity.notFound().build();
         }
+    }
+
+    // GET all
+    @GetMapping
+    public ResponseEntity<List<BookingResponse>> getAll() {
+        List<BookingResponse> out = bookingRepository.findAll().stream().map(BookingController::toResponse).toList();
+        return ResponseEntity.ok(out);
+    }
+
+    // PUT (update)
+    public ResponseEntity<BookingResponse> update(@PathVariable("id") Long id, @Valid @RequestBody BookingRequest input) {
+        Booking postojeci = bookingRepository.findById(id).orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Booking ne postoji"));
+
+        postojeci.setUserId(input.getUserId());
+        postojeci.setResourceName(input.getResourceName());
+        postojeci.setPrice(input.getPrice());
+        postojeci.setStart(input.getStart());
+        postojeci.setEnd(input.getStart().plusDays(7));
+
+        Booking updated = bookingRepository.save(postojeci);
+        return ResponseEntity.ok(toResponse(updated));
+    }
+
+    // DELETE
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable("id") Long id) {
+        if(!bookingRepository.existsById(id)) {
+            throw new ResponseStatusException(NOT_FOUND, "Booking ne postoji");
+        }
+        bookingRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 
     //helperi

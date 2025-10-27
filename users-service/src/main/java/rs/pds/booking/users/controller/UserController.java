@@ -3,6 +3,7 @@ package rs.pds.booking.users.controller;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.util.UriComponentsBuilder;
 import rs.pds.booking.users.domain.User;
 import rs.pds.booking.users.dto.UserRequest;
@@ -10,6 +11,10 @@ import rs.pds.booking.users.dto.UserResponse;
 import rs.pds.booking.users.repository.UserRepository;
 
 import java.net.URI;
+import java.util.List;
+
+import static org.springframework.http.HttpStatus.CONFLICT;
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @RestController
 @RequestMapping("/users")
@@ -45,6 +50,41 @@ public class UserController {
     @GetMapping("/{id}")
     public ResponseEntity<UserResponse> getById(@PathVariable("id") Long id) {
         return userRepository.findById(id).map(user -> ResponseEntity.ok(toResponse(user))).orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    // GET za sve usere
+    @GetMapping
+    public ResponseEntity<List<UserResponse>> getAll() {
+        var list = userRepository.findAll().stream().map(UserController::toResponse).toList();
+
+        return ResponseEntity.ok(list);
+    }
+
+    // PUT /users/{id}
+    @GetMapping
+    public ResponseEntity<UserResponse> update(@PathVariable("id") Long id, @Valid @RequestBody UserRequest input){
+        User postojeci = userRepository.findById(id).orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User nije pronadjen"));
+
+        if(!postojeci.getEmail().equalsIgnoreCase(input.getEmail()) && userRepository.existsByEmailAndIdNot(postojeci.getEmail(), id)){
+            throw new ResponseStatusException(CONFLICT, "Email se vec koristi.");
+        }
+
+        postojeci.setName(input.getName());
+        postojeci.setEmail(input.getEmail());
+        postojeci.setPassword(input.getPassword());
+
+        User updated = userRepository.save(postojeci);
+        return ResponseEntity.ok(toResponse(updated));
+    }
+
+    // DELETE
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable("id") Long id){
+        if(!userRepository.existsById(id)){
+            throw new ResponseStatusException(NOT_FOUND, "User nije pronadjen.");
+        }
+        userRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 
     // helperi
