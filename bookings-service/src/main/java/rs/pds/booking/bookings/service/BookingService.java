@@ -34,13 +34,17 @@ public class BookingService {
         return new BookingDetails(b.getId(), b.getUserId(), b.getResourceName(), b.getStart(), b.getEnd(), b.getPrice(), user);
     }
 
-    public BookingDetails getDetailsFallback(Long bookingId, Throwable ex){
-        log.warn("Fallback trigerovan za bookingId: "+bookingId+",; cause:"+(ex!=null ? ex.toString() : "n/a"));
+    public BookingDetails getDetailsFallback(Long bookingId, Throwable ex) {
+        log.warn("Fallback trigerovan za bookingId: {}, cause: {}",
+                bookingId, ex != null ? ex.toString() : "n/a");
 
-        Booking b = bookingRepository.findById(bookingId).orElseThrow(() -> new IllegalArgumentException("Booking " + bookingId + " nije pronadjen."));
+        Booking b = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new IllegalArgumentException("Booking " + bookingId + " nije pronadjen."));
 
         UserSummary user = new UserSummary(null, "UNAVAILABLE", "unavailable@local");
 
-        return new BookingDetails(b.getId(), b.getUserId(), b.getResourceName(), b.getStart(), b.getEnd(), b.getPrice(), user);
+        return new BookingDetails(
+                b.getId(), b.getUserId(), b.getResourceName(), b.getStart(), b.getEnd(), b.getPrice(), user
+        );
     }
 }

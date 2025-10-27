@@ -1,4 +1,4 @@
-package rs.pds.booking.users.service;
+package rs.pds.booking.bookings.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
