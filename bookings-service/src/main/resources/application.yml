@@ -1,9 +1,37 @@
 spring:
   application:
     name: bookings-service
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectionTimeout: 2000
+            readTimeout: 3000
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      usersClient:
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold:
+          waitDurationInOpenState: 10s
+          permittedNumberOfCallsInHalfOpenState: 3
+          automaticTransitionFromOpenToHalfOpenEnabled: true
+  retry:
+    instances:
+      usersClient:
+        maxAttempts: 3
+        waitDuration: 300ms
+        retryExceptins:
+          - feign.RetryableException
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+
 
   datasource:
-    url: jdbc:h2:mem:bazadb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    url: jdbc:h2:mem:bazadb; #DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver #jdbc:h2:mem:bookingsdb
     username: cofi
     password: sifra123
