@@ -1,43 +1,90 @@
 version: "3.9"
+
+name: booking-micro
+
+networks:
+  booking-net:
+    driver: bridge
+
 services:
   discovery-service:
     build: ./discovery-service
     container_name: discovery-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - JAVA_OPTS=-Xms128m -Xmx256m
     ports:
       - "8761:8761"
-    environment:
-      - SERVER_PORT=8761
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 5s
+      timeout: 2s
+      retries: 20
+    networks:
+      - booking-net
 
   api-gateway:
     build: ./api-gateway
     container_name: api-gateway
     depends_on:
-      - discovery-service
+      discovery-service:
+        condition: service_healthy
+      users-service:
+        condition: service_healthy
+      bookings-service:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_URI=http://discovery-service:8761/eureka
+      - JAVA_OPTS=-Xms128m -Xmx256m
+      - API_KEY_HEADER=X-API-Key
+      - API_KEY_VALUE=sifra123
     ports:
       - "8085:8085"
-    environment:
-      - SERVER_PORT=8085
-      - JAVA_OPTS=-Xms128m -Xmx256m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
+      interval: 5s
+      timeout: 2s
+      retries: 20
+    networks:
+      - booking-net
 
   users-service:
     build: ./users-service
     container_name: users-service
     depends_on:
-      - discovery-service
+      discovery-service:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_URI=http://discovery-service:8761/eureka
+      - JAVA_OPTS=-Xms128m -Xmx256m
     ports:
       - "8081:8081"
-    environment:
-      - SERVER_PORT=8081
-      - JAVA_OPTS=-Xms128m -Xmx256m
+    healthcheck:
+      test:  ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 5s
+      timeout: 2s
+      retries: 20
+    networks:
+      - booking-net
 
   bookings-service:
     build: ./bookings-service
     container_name: bookings-service
     depends_on:
-      - discovery-service
-      - users-service
+      discovery-service:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_URI=http://discovery-service:8761/eureka
+      - JAVA_OPTS=-Xms128m -Xmx256m
     ports:
       - "8082:8082"
-    environment:
-      - SERVER_PORT=8082
-      - JAVA_OPTS=-Xms128m -Xmx256m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
+      interval: 5s
+      timeout: 2s
+      retries: 20
+    networks:
+      - booking-net
