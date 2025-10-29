@@ -76,6 +76,7 @@ public class BookingController {
     }
 
     // PUT (update)
+    @PutMapping("/{id}")
     public ResponseEntity<BookingResponse> update(@PathVariable("id") Long id, @Valid @RequestBody BookingRequest input) {
         Booking postojeci = bookingRepository.findById(id).orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Booking ne postoji"));
 

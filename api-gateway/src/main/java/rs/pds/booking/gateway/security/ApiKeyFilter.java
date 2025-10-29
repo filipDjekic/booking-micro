@@ -44,7 +44,7 @@ public class ApiKeyFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
-        log.warn("API key promasen za path: " + path, "; headerName: " + headerName + "; provided: " + provided);
+        log.warn("API key promasen za path: {}; headerName: {}; provided: {}", path, headerName, provided);
 
         var response = exchange.getResponse();
         response.setStatusCode(HttpStatus.UNAUTHORIZED);
