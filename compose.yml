@@ -1,5 +1,3 @@
-version: "3.9"
-
 name: booking-micro
 
 networks:
@@ -8,7 +6,9 @@ networks:
 
 services:
   discovery-service:
-    build: ./discovery-service
+    build:
+      context: .
+      dockerfile: discovery-service/Dockerfile
     container_name: discovery-service
     environment:
       - SPRING_PROFILES_ACTIVE=docker
@@ -16,15 +16,17 @@ services:
     ports:
       - "8761:8761"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
-      interval: 5s
-      timeout: 2s
+      test: [ "CMD-SHELL", "exec 3<>/dev/tcp/localhost/808X; exit $?" ]
+      interval: 10s
+      timeout: 3s
       retries: 20
     networks:
       - booking-net
 
   api-gateway:
-    build: ./api-gateway
+    build:
+      context: .
+      dockerfile: discovery-service/Dockerfile
     container_name: api-gateway
     depends_on:
       discovery-service:
@@ -42,15 +44,17 @@ services:
     ports:
       - "8085:8085"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8085/actuator/health"]
-      interval: 5s
-      timeout: 2s
+      test: [ "CMD-SHELL", "exec 3<>/dev/tcp/localhost/808X; exit $?" ]
+      interval: 10s
+      timeout: 3s
       retries: 20
     networks:
       - booking-net
 
   users-service:
-    build: ./users-service
+    build:
+      context: .
+      dockerfile: discovery-service/Dockerfile
     container_name: users-service
     depends_on:
       discovery-service:
@@ -62,15 +66,17 @@ services:
     ports:
       - "8081:8081"
     healthcheck:
-      test:  ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
-      interval: 5s
-      timeout: 2s
+      test: [ "CMD-SHELL", "exec 3<>/dev/tcp/localhost/808X; exit $?" ]
+      interval: 10s
+      timeout: 3s
       retries: 20
     networks:
       - booking-net
 
   bookings-service:
-    build: ./bookings-service
+    build:
+      context: .
+      dockerfile: discovery-service/Dockerfile
     container_name: bookings-service
     depends_on:
       discovery-service:
@@ -82,9 +88,9 @@ services:
     ports:
       - "8082:8082"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/actuator/health"]
-      interval: 5s
-      timeout: 2s
+      test: [ "CMD-SHELL", "exec 3<>/dev/tcp/localhost/808X; exit $?" ]
+      interval: 10s
+      timeout: 3s
       retries: 20
     networks:
       - booking-net
