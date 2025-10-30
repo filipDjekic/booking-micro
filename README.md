@@ -69,7 +69,7 @@ curl -X POST http://localhost:8085/api/bookings   -H "Content-Type: application/
 # DOKUMENTACIJA
 
 ## Dijagram komponenti
-
+![Komponentni dijagram](nesto.png)
 
 ## Tabela servisa (naziv, port, rute, odgovornosti)
 | Naziv | Port (host) | Rute (preko gateway-a) | Odgovornosti |
