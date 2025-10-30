@@ -1,7 +1,14 @@
 package rs.pds.booking.bookings.controller;
 
 import feign.FeignException;
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker; // anotacija
+import io.github.resilience4j.retry.annotation.Retry;                  // anotacija
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.retry.RetryRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -11,7 +18,6 @@ import rs.pds.booking.bookings.domain.Booking;
 import rs.pds.booking.bookings.dto.BookingDetails;
 import rs.pds.booking.bookings.dto.BookingRequest;
 import rs.pds.booking.bookings.dto.BookingResponse;
-import rs.pds.booking.bookings.dto.UserSummary;
 import rs.pds.booking.bookings.repository.BookingRepository;
 import rs.pds.booking.bookings.service.BookingService;
 
@@ -27,38 +33,85 @@ import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 @RequestMapping("/bookings")
 public class BookingController {
 
+    private static final Logger log = LoggerFactory.getLogger(BookingController.class);
+
     private final BookingRepository bookingRepository;
     private final BookingService bookingService;
     private final UserClient usersClient;
 
+    // registries za event logove (autokonfiguriše ih resilience4j-spring-boot starter)
+    private final RetryRegistry retryRegistry;
+    private final CircuitBreakerRegistry cbRegistry;
+
     public BookingController(BookingRepository bookingRepository,
                              BookingService bookingService,
-                             UserClient usersClient) {
+                             UserClient usersClient,
+                             RetryRegistry retryRegistry,
+                             CircuitBreakerRegistry cbRegistry) {
         this.bookingRepository = bookingRepository;
         this.bookingService = bookingService;
         this.usersClient = usersClient;
+        this.retryRegistry = retryRegistry;
+        this.cbRegistry = cbRegistry;
     }
 
-    // === Pomoćna metoda: obavezna provera da li user postoji (404 ako ne postoji) ===
-    private UserSummary ensureUserExists(Long userId) {
+    // Registruj jasne logove za SVE Retry/CB evente odmah po startu
+    @PostConstruct
+    public void wireResilienceLogging() {
+        // koristimo FQN za tipove da izbegnemo konflikt sa anotacijama
+        io.github.resilience4j.retry.Retry retry = retryRegistry.retry("usersClient");
+        retry.getEventPublisher()
+                .onRetry(e -> log.warn("[RETRY][usersClient] attempt={} lastThrowable={}",
+                        e.getNumberOfRetryAttempts(),
+                        e.getLastThrowable() == null ? "n/a" : e.getLastThrowable().toString()))
+                .onError(e -> log.error("[RETRY][usersClient][ERROR] {}", e))
+                .onSuccess(e -> log.info("[RETRY][usersClient][SUCCESS] {}", e));
+
+        io.github.resilience4j.circuitbreaker.CircuitBreaker cb = cbRegistry.circuitBreaker("usersClient");
+        cb.getEventPublisher()
+                .onStateTransition(e -> log.warn("[CB][usersClient] {} -> {} (eventType={})",
+                        e.getStateTransition().getFromState(), e.getStateTransition().getToState(), e.getEventType()))
+                .onError(e -> log.error("[CB][usersClient][ERROR] duration={}ms throwable={}",
+                        e.getElapsedDuration() == null ? "n/a" : e.getElapsedDuration().toMillis(),
+                        e.getThrowable() == null ? "n/a" : e.getThrowable().toString()))
+                .onCallNotPermitted(e -> log.warn("[CB][usersClient] CALL_NOT_PERMITTED (OPEN)"));
+
+        log.info("[Resilience] listeners wired in BookingController for 'usersClient'");
+    }
+
+    // ---- Provera postojanja user-a (sa Retry/CB) ----
+    @Retry(name = "usersClient")
+    @CircuitBreaker(name = "usersClient", fallbackMethod = "ensureUserExistsFallback")
+    private void ensureUserExists(Long userId) {
+        log.info("[usersGuard] checking userId={} ...", userId);
         try {
-            return usersClient.getById(userId); // 200 -> postoji
+            usersClient.getById(userId); // 404/greške bacaju FeignException
+            log.info("[usersGuard] userId={} EXISTS", userId);
         } catch (FeignException.NotFound e) {
+            log.warn("[usersGuard] userId={} NOT FOUND (404 from users-service)", userId);
             throw new ResponseStatusException(NOT_FOUND, "User ne postoji");
         } catch (FeignException e) {
-            // npr. 503/timeout sa users-service; može i drugi status po želji
+            log.error("[usersGuard] users-service error for userId={}, status={}", userId, e.status(), e);
             throw new ResponseStatusException(SERVICE_UNAVAILABLE, "Users servis nije dostupan");
         }
     }
 
-    // === POST /bookings  -> UPSERT (po userId + resourceName) uz proveru user-a ===
+    // Fallback mora da ima isti potpis + Throwable
+    @SuppressWarnings("unused")
+    private void ensureUserExistsFallback(Long userId, Throwable t) {
+        log.error("[usersGuard][FALLBACK] userId={} cause={}", userId, t.toString(), t);
+        if (t instanceof ResponseStatusException rse && rse.getStatusCode().value() == 404) {
+            throw rse; // zadrži 404 ako user realno ne postoji
+        }
+        throw new ResponseStatusException(SERVICE_UNAVAILABLE, "Users servis nije dostupan (fallback)");
+    }
+
+    // POST /bookings  -> UPSERT (po userId + resourceName)
     @PostMapping
     public ResponseEntity<BookingResponse> createOrUpdate(@Valid @RequestBody BookingRequest input,
                                                           UriComponentsBuilder uriBuilder) {
-        // 1) obavezna provera user-a
         ensureUserExists(input.getUserId());
 
-        // 2) upsert logika
         LocalDateTime start = input.getStart();
         LocalDateTime end = start.plusDays(7);
 
@@ -86,51 +139,45 @@ public class BookingController {
         return ResponseEntity.created(location).body(toResponse(saved));
     }
 
-    // === GET /bookings/{id} -> 200 ili 404; dodatno 404 ako user povezan s bookingom ne postoji ===
+    // GET /bookings/{id}
     @GetMapping("/{id}")
     public ResponseEntity<BookingResponse> get(@PathVariable("id") Long id) {
         return bookingRepository.findById(id)
                 .map(b -> {
-                    ensureUserExists(b.getUserId()); // obavezna provera
+                    ensureUserExists(b.getUserId());
                     return ResponseEntity.ok(toResponse(b));
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // === GET /bookings/{id}/details -> 404 ako nema booking; zatim 404 ako nema user ===
+    // GET /bookings/{id}/details
     @GetMapping("/{id}/details")
     public ResponseEntity<BookingDetails> details(@PathVariable("id") Long id) {
-        Booking booking = bookingRepository.findById(id)
+        var booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Booking ne postoji"));
 
-        // provera user-a (eksplicitno pre agregacije)
-        UserSummary user = ensureUserExists(booking.getUserId());
-
-        // standardni detalji (servis može opet da zove usersClient, ali već imamo user ako želiš da ga proslediš)
-        BookingDetails details = bookingService.getDetails(id);
-        // Ako hoćeš da izbegneš drugi poziv, možeš napraviti varijantu koja prima već učitanog user-a.
+        ensureUserExists(booking.getUserId());
+        var details = bookingService.getDetails(id);
         return ResponseEntity.ok(details);
     }
 
-    // === GET /bookings -> 200; (ne proveravamo svakog user-a radi performansi liste)
+    // GET /bookings
     @GetMapping
     public ResponseEntity<List<BookingResponse>> getAll() {
-        List<BookingResponse> out = bookingRepository.findAll()
+        var out = bookingRepository.findAll()
                 .stream()
-                // Ako baš želiš striktno “svuda”, ovde bi za svaki red zvao ensureUserExists(b.getUserId()) – ali to je N poziva.
                 .map(BookingController::toResponse)
                 .toList();
         return ResponseEntity.ok(out);
     }
 
-    // === PUT /bookings/{id} -> 200 ili 404; provera user-a iz inputa pre izmene ===
+    // PUT /bookings/{id}
     @PutMapping("/{id}")
     public ResponseEntity<BookingResponse> update(@PathVariable("id") Long id,
                                                   @Valid @RequestBody BookingRequest input) {
-        Booking existing = bookingRepository.findById(id)
+        var existing = bookingRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Booking ne postoji"));
 
-        // provera user-a iz payload-a (ciljani user mora da postoji)
         ensureUserExists(input.getUserId());
 
         existing.setUserId(input.getUserId());
@@ -139,19 +186,17 @@ public class BookingController {
         existing.setStart(input.getStart());
         existing.setEnd(input.getStart().plusDays(7));
 
-        Booking updated = bookingRepository.save(existing);
+        var updated = bookingRepository.save(existing);
         return ResponseEntity.ok(toResponse(updated));
     }
 
-    // === DELETE /bookings/{id} -> 204 ili 404; opciono validiraj i user-a povezanog sa bookingom ===
+    // DELETE /bookings/{id}
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable("id") Long id) {
-        Booking existing = bookingRepository.findById(id)
+        var existing = bookingRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Booking ne postoji"));
 
-        // Ako želiš “svuda” striktno: ne dozvoli brisanje ako user više ne postoji
         ensureUserExists(existing.getUserId());
-
         bookingRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }

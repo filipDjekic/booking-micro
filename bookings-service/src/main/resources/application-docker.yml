@@ -41,11 +41,11 @@ resilience4j:
         slidingWindowType: COUNT_BASED
         slidingWindowSize: 10
         failureRateThreshold: 50
-        slowCallDurationThreshold: 2s
-        slowCallRateThreshold: 50
-        minimumNumberOfCalls: 5
         waitDurationInOpenState: 10s
         permittedNumberOfCallsInHalfOpenState: 3
+        minimumNumberOfCalls: 5
+        slowCallDurationThreshold: 2s
+        slowCallRateThreshold: 50
   retry:
     instances:
       usersClient:
@@ -63,3 +63,10 @@ management:
   endpoint:
     health:
       show-details: when_authorized
+
+logging:
+  level:
+    org.springframework.cloud.openfeign: DEBUG
+    feign: DEBUG
+    io.github.resilience4j: INFO
+    rs.pds.booking: INFO
