@@ -4,47 +4,53 @@ server:
 spring:
   application:
     name: api-gateway
+
   cloud:
     gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
       routes:
-        - id: users
-          uri: lb://USERS-SERVICE
+        - id: users-route
+          uri: lb://users-service
           predicates:
             - Path=/api/users/**
           filters:
             - StripPrefix=1
-        - id: bookings
-          uri: lb://BOOKINGS-SERVICE
+
+        - id: bookings-route
+          uri: lb://bookings-service
           predicates:
             - Path=/api/bookings/**
           filters:
             - StripPrefix=1
-      default_filters: []
-    loadbalancer:
-      cache:
-        enabled: true
+
+      httpclient:
+        connect-timeout: 2000
+        response-timeout: 3s
+
 eureka:
   client:
     service-url:
       defaultZone: http://discovery-service:8761/eureka
   instance:
-    prefer-ip-address: true
-    instance-id: ${spring.application.name}:${server.port}
+    prefer-ip-address: false
+
+security:
+  api-key:
+    header: X-API-Key
+    value: sifra123
+    whitelist:
+      - /actuator/**
+      - /api/users/swagger-ui/**
+      - /api/users/v3/api-docs/**
+      - /api/bookings/swagger-ui/**
+      - /api/bookings/v3/api-docs/**
 
 management:
   endpoints:
     web:
       exposure:
         include: health,info
-
-security:
-  api-key:
-    enabled: true
-    header-name: ${API_KEY_HEADER:X-API-Key}
-    value: ${API_KEY_VALUE:sifra123}
-    whitelist:
-      - /actuator/**
-      - /api/users/v3/api-docs/**
-      - /api/users/swagger-ui/**
-      - /api/bookings/v3/api-docs/**
-      - /api/bookings/swagger-ui/**
+  endpoint:
+    health:
+      show-details: when_authorized

@@ -17,7 +17,7 @@ import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @RestController
-@RequestMapping("/users")
+@RequestMapping("/users") // važi: /api/users/** preko gateway-a (StripPrefix=1) -> /users/**
 public class UserController {
 
     private final UserRepository userRepository;
@@ -26,13 +26,12 @@ public class UserController {
         this.userRepository = userRepository;
     }
 
-    // POST /users -> 201 Created + Location + DTO (bez lozinke)
+    // POST /users -> 201 Created + Location: /users/{id}
     @PostMapping
     public ResponseEntity<UserResponse> create(@Valid @RequestBody UserRequest input,
                                                UriComponentsBuilder uriBuilder) {
 
         if (userRepository.existsByEmail(input.getEmail())) {
-            // 409 ako email već postoji
             return ResponseEntity.status(CONFLICT).build();
         }
 
@@ -47,15 +46,15 @@ public class UserController {
         return ResponseEntity.created(location).body(toResponse(saved));
     }
 
-    // GET /users/{id} -> 200 ili 404
+    // GET /users/{id} -> 200 ili 404 (bez 500)
     @GetMapping("/{id}")
-    public ResponseEntity<UserResponse> getById(@PathVariable Long id) {
+    public ResponseEntity<?> getById(@PathVariable("id") Long id) {
         return userRepository.findById(id)
                 .map(user -> ResponseEntity.ok(toResponse(user)))
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // GET /users -> lista svih
+    // GET /users -> 200 + lista
     @GetMapping
     public ResponseEntity<List<UserResponse>> getAll() {
         var list = userRepository.findAll()
@@ -65,29 +64,29 @@ public class UserController {
         return ResponseEntity.ok(list);
     }
 
-    // PUT /users/{id} -> update
+    // PUT /users/{id} -> 200 ili 404/409
     @PutMapping("/{id}")
-    public ResponseEntity<UserResponse> update(@PathVariable Long id,
+    public ResponseEntity<?> update(@PathVariable("id") Long id,
                                                @Valid @RequestBody UserRequest input) {
-        var postojeci = userRepository.findById(id)
+        var existing = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User nije pronadjen"));
 
-        if (!postojeci.getEmail().equalsIgnoreCase(input.getEmail())
+        if (!existing.getEmail().equalsIgnoreCase(input.getEmail())
                 && userRepository.existsByEmailAndIdNot(input.getEmail(), id)) {
             throw new ResponseStatusException(CONFLICT, "Email se vec koristi.");
         }
 
-        postojeci.setName(input.getName());
-        postojeci.setEmail(input.getEmail());
-        postojeci.setPassword(input.getPassword());
+        existing.setName(input.getName());
+        existing.setEmail(input.getEmail());
+        existing.setPassword(input.getPassword());
 
-        var updated = userRepository.save(postojeci);
+        var updated = userRepository.save(existing);
         return ResponseEntity.ok(toResponse(updated));
     }
 
     // DELETE /users/{id} -> 204 ili 404
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
+    public ResponseEntity<?> delete(@PathVariable("id") Long id) {
         if (!userRepository.existsById(id)) {
             throw new ResponseStatusException(NOT_FOUND, "User nije pronadjen.");
         }
@@ -95,7 +94,7 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
-    // helper
+    // helper: ne vraćamo password u response
     private static UserResponse toResponse(User u) {
         return new UserResponse(u.getId(), u.getName(), u.getEmail());
     }
