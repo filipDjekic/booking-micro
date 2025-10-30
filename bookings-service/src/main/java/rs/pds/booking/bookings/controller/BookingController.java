@@ -39,7 +39,6 @@ public class BookingController {
     private final BookingService bookingService;
     private final UserClient usersClient;
 
-    // registries za event logove (autokonfiguriše ih resilience4j-spring-boot starter)
     private final RetryRegistry retryRegistry;
     private final CircuitBreakerRegistry cbRegistry;
 
@@ -55,10 +54,8 @@ public class BookingController {
         this.cbRegistry = cbRegistry;
     }
 
-    // Registruj jasne logove za SVE Retry/CB evente odmah po startu
     @PostConstruct
     public void wireResilienceLogging() {
-        // koristimo FQN za tipove da izbegnemo konflikt sa anotacijama
         io.github.resilience4j.retry.Retry retry = retryRegistry.retry("usersClient");
         retry.getEventPublisher()
                 .onRetry(e -> log.warn("[RETRY][usersClient] attempt={} lastThrowable={}",
@@ -79,7 +76,6 @@ public class BookingController {
         log.info("[Resilience] listeners wired in BookingController for 'usersClient'");
     }
 
-    // ---- Provera postojanja user-a (sa Retry/CB) ----
     @Retry(name = "usersClient")
     @CircuitBreaker(name = "usersClient", fallbackMethod = "ensureUserExistsFallback")
     private void ensureUserExists(Long userId) {
@@ -96,7 +92,6 @@ public class BookingController {
         }
     }
 
-    // Fallback mora da ima isti potpis + Throwable
     @SuppressWarnings("unused")
     private void ensureUserExistsFallback(Long userId, Throwable t) {
         log.error("[usersGuard][FALLBACK] userId={} cause={}", userId, t.toString(), t);
@@ -106,7 +101,6 @@ public class BookingController {
         throw new ResponseStatusException(SERVICE_UNAVAILABLE, "Users servis nije dostupan (fallback)");
     }
 
-    // POST /bookings  -> UPSERT (po userId + resourceName)
     @PostMapping
     public ResponseEntity<BookingResponse> createOrUpdate(@Valid @RequestBody BookingRequest input,
                                                           UriComponentsBuilder uriBuilder) {
