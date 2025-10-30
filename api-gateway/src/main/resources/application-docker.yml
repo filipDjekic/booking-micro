@@ -39,7 +39,8 @@ management:
 
 security:
   api-key:
-    header: ${API_KEY_HEADER:X-API-Key}
+    enabled: true
+    header-name: ${API_KEY_HEADER:X-API-Key}
     value: ${API_KEY_VALUE:sifra123}
     whitelist:
       - /actuator/**
