@@ -1,102 +1,541 @@
-# PDS – Booking Microservices (Docker-first)
+# Booking Microservices Platform
 
-Mala mikroservisna aplikacija za **rezervacije** koja demonstrira: razdvajanje na servise, **service discovery (Eureka)**, **API Gateway (Spring Cloud Gateway)**, **komunikaciju između servisa (OpenFeign)** i **otpornost (Resilience4j)**. Build i pokretanje su u potpunosti preko **Docker Compose**.
+<div align="center">
+
+![Java](https://img.shields.io/badge/Java-21-orange)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3.4-brightgreen)
+![Spring Cloud](https://img.shields.io/badge/Spring_Cloud-2023.0.3-blue)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED)
+![License](https://img.shields.io/badge/license-MIT-black)
+
+Scalable microservices-based booking platform built with Spring Boot, Spring Cloud, Docker, and resilient inter-service communication patterns.
+
+</div>
 
 ---
 
-## 1) Pokretanje (Docker Compose, redosled podizanja)
+# Overview
 
-> *depends_on + healthcheck* u `compose.yml` već obezbeđuju ispravan redosled (Eureka → Users → Bookings → Gateway).
+This project demonstrates a production-oriented microservices architecture for handling users and booking operations.
+
+The platform includes:
+
+* Service Discovery using Eureka
+* API Gateway with centralized routing and API-key validation
+* Independent microservices with isolated persistence layers
+* Inter-service communication through OpenFeign
+* Fault tolerance using Resilience4j
+* Docker-first deployment strategy
+* H2 databases for local development and testing
+
+The system is structured around independently deployable services and follows common cloud-native backend design principles.
+
+---
+
+# Architecture
+
+```text
+                           ┌─────────────────────┐
+                           │  Discovery Service  │
+                           │      (Eureka)       │
+                           └─────────┬───────────┘
+                                     │
+                    Service Registration & Discovery
+                                     │
+        ┌────────────────────────────┴────────────────────────────┐
+        │                                                         │
+┌───────▼────────┐                                    ┌──────────▼─────────┐
+│   API Gateway  │                                    │  Users Service     │
+│ Spring Gateway │◄────────────Feign Client──────────►│ CRUD + H2 Database │
+│ API Key Filter │                                    └────────────────────┘
+└───────┬────────┘
+        │
+        │
+        ▼
+┌────────────────────┐
+│  Bookings Service  │
+│ CRUD + Resilience  │
+│      + H2 DB       │
+└────────────────────┘
+```
+
+---
+
+# Tech Stack
+
+## Backend
+
+* Java 21
+* Spring Boot 3.3.4
+* Spring Cloud 2023.0.3
+* Spring Web
+* Spring Data JPA
+* Spring Cloud Gateway
+* Eureka Discovery Server
+* OpenFeign
+* Resilience4j
+
+## Database
+
+* H2 In-Memory Database
+
+## DevOps
+
+* Docker
+* Docker Compose
+* Maven
+
+---
+
+# Microservices
+
+| Service           | Port | Responsibility                             |
+| ----------------- | ---: | ------------------------------------------ |
+| discovery-service | 8761 | Service registry and discovery             |
+| api-gateway       | 8085 | Centralized routing and API-key validation |
+| users-service     | 8081 | User management and persistence            |
+| bookings-service  | 8082 | Booking management and user validation     |
+
+---
+
+# Features
+
+## API Gateway
+
+* Centralized entry point
+* Request routing
+* API-key authentication filter
+* Load-balanced communication
+* Hidden internal service topology
+
+## Service Discovery
+
+* Dynamic service registration
+* Runtime service lookup
+* Decoupled infrastructure
+* Cloud-native service resolution
+
+## Users Service
+
+* Create users
+* Retrieve users
+* H2-backed persistence
+* RESTful API design
+
+## Bookings Service
+
+* Create bookings
+* Retrieve bookings
+* Validate user existence through Feign
+* Retry and Circuit Breaker support
+* Aggregated booking details endpoint
+
+## Resilience Patterns
+
+Implemented with Resilience4j:
+
+* Retry
+* Circuit Breaker
+* Fault isolation
+* External service failure handling
+
+---
+
+# Project Structure
+
+```text
+booking-micro/
+│
+├── api-gateway/
+├── bookings-service/
+├── discovery-service/
+├── users-service/
+│
+├── compose.yml
+├── pom.xml
+└── README.md
+```
+
+---
+
+# Running the Project
+
+## Prerequisites
+
+Install:
+
+* Java 21
+* Maven 3.9+
+* Docker
+* Docker Compose
+
+---
+
+## Run with Docker Compose
+
+From the project root:
 
 ```bash
-# iz root foldera (gde je compose.yml)
 docker compose up --build -d
+```
 
-# logovi po servisu (primer)
-docker compose logs -f api-gateway
+View logs:
 
-# gašenje i čišćenje volumena
+```bash
+docker compose logs -f
+```
+
+Stop all services:
+
+```bash
 docker compose down -v
 ```
 
-### Provere (health i registracija)
-- **Eureka dashboard:**  <http://localhost:8761>  
-  (očekuje se da su registrovani: `users-service`, `bookings-service`, `api-gateway`)
-- **Gateway health:** `curl -s http://localhost:8085/actuator/health`
-- **Users health:**   `curl -s http://localhost:8081/actuator/health`
-- **Bookings health:** `curl -s http://localhost:8082/actuator/health`
+---
 
-> **API ključ (gateway):** dodati header **`X-API-Key: sifra123`** na sve pozive preko gateway-a.
+# Service Startup Order
+
+The infrastructure is automatically orchestrated using:
+
+* `depends_on`
+* health checks
+* container dependency management
+
+Startup sequence:
+
+```text
+Discovery Service
+      ↓
+Users Service
+      ↓
+Bookings Service
+      ↓
+API Gateway
+```
 
 ---
 
-## 2) Kratak pregled arhitekture
+# API Security
 
+All gateway requests require:
+
+```http
+X-API-Key: sifra123
 ```
-[ client ] → [ api-gateway ] → [ users-service ] → [ H2 ]
-                          ↘→  [ bookings-service ] → [ H2 ]
-                [ discovery-service (Eureka) ]
-```
 
-- `bookings-service` koristi **Feign** ka `users-service` (npr. validacija `userId`).
-- Otpornost: **Resilience4j** (Retry/Circuit Breaker) primenjen na Feign poziv.
-- Persistencija: **H2 in-memory** (users/bookings) za lokalni rad i demonstraciju.
+Example:
 
----
-
-## 3) Endpoints (preko Gateway-a) – primeri poziva
-
-> Svi primeri koriste header `X-API-Key: sifra123`.
-
-**Users**
 ```bash
-curl -X POST http://localhost:8085/api/users   -H "Content-Type: application/json" -H "X-API-Key: sifra123"   -d '{"name":"Ana","email":"ana@example.com"}'
-
-curl http://localhost:8085/api/users -H "X-API-Key: sifra123"
+curl http://localhost:8085/api/users \
+  -H "X-API-Key: sifra123"
 ```
 
-**Bookings**
+---
+
+# API Endpoints
+
+## Users API
+
+### Create User
+
+```http
+POST /api/users
+```
+
+Request:
+
+```json
+{
+  "name": "Ana",
+  "email": "ana@example.com"
+}
+```
+
+Example:
+
 ```bash
-curl -X POST http://localhost:8085/api/bookings   -H "Content-Type: application/json" -H "X-API-Key: sifra123"   -d '{"userId":1,"startTime":"2026-01-01T10:00:00","endTime":"2026-01-01T11:00:00"}'
+curl -X POST http://localhost:8085/api/users \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: sifra123" \
+  -d '{
+    "name":"Ana",
+    "email":"ana@example.com"
+  }'
 ```
 
-**H2 konzole**
-- users-service: <http://localhost:8081/h2-console> (JDBC: `jdbc:h2:mem:usersdb`, user `sa`, pass prazno)
-- bookings-service: <http://localhost:8082/h2-console> (JDBC: `jdbc:h2:mem:bookingsdb`, user `sa`, pass prazno)
+---
+
+### Get All Users
+
+```http
+GET /api/users
+```
+
+Example:
+
+```bash
+curl http://localhost:8085/api/users \
+  -H "X-API-Key: sifra123"
+```
 
 ---
 
-# DOKUMENTACIJA
+## Bookings API
 
-## Dijagram komponenti
-![Komponentni dijagram](nesto.png)
+### Create Booking
 
-## Tabela servisa (naziv, port, rute, odgovornosti)
-| Naziv | Port (host) | Rute (preko gateway-a) | Odgovornosti |
-|---|---:|---|---|
-| discovery-service | 8761 | — | **Eureka** registry – registracija i lookup servisa |
-| api-gateway | 8085 | `/api/users/**`, `/api/bookings/**` | Centralna ulazna tačka; rutiranje; **API key** filter |
-| users-service | 8081 | (kroz gateway) `/api/users/**` | CRUD korisnika; **H2** `usersdb` |
-| bookings-service | 8082 | (kroz gateway) `/api/bookings/**` | CRUD rezervacija; **Feign** ka users; **Resilience4j** |
+```http
+POST /api/bookings
+```
 
-## Šta je urađeno (obavezno) + Bonus delovi
-**Obavezno (ispunjeno):**
-- **Service Discovery (Eureka)** – centralni registry
-- **API Gateway (Spring Cloud Gateway)** – rute ka users/bookings
-- **Dva mikroservisa** – `users-service` (CRUD + H2), `bookings-service` (CRUD + Feign + H2)
-- **Komunikacija servis–servis – OpenFeign** (bookings → users)
-- **Otpornost – Resilience4j (Retry + Circuit Breaker)** na Feign pozivu
-- **Persistencija – H2 (in-memory)** za oba servisa
-- **Agregacioni endpoint** – *u sklopu bookings-service* (GET detalja rezervacije sa korisnikom)
+Request:
 
-**Bonus (u ovom projektu):**
-- **Docker Compose** – build/run celog okruženja
-- **Jednostavna autentikacija na gateway-u (API Key)** – header `X-API-Key`
+```json
+{
+  "userId": 1,
+  "startTime": "2026-01-01T10:00:00",
+  "endTime": "2026-01-01T11:00:00"
+}
+```
 
-## Tehnologije
-- Java (Temurin 21 JRE u slikama), **Spring Boot 3**, Spring Web, Spring Data JPA  
-- **Spring Cloud**: Eureka (discovery), Gateway (routing)  
-- **OpenFeign** (servis–servis), **Resilience4j** (CB/Retry)  
-- **H2** (users/bookings), **Maven**, **Docker/Compose**
+Example:
+
+```bash
+curl -X POST http://localhost:8085/api/bookings \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: sifra123" \
+  -d '{
+    "userId":1,
+    "startTime":"2026-01-01T10:00:00",
+    "endTime":"2026-01-01T11:00:00"
+  }'
+```
 
 ---
+
+# Health Checks
+
+## Eureka Dashboard
+
+```text
+http://localhost:8761
+```
+
+Expected registered services:
+
+* api-gateway
+* users-service
+* bookings-service
+
+---
+
+## Actuator Health Endpoints
+
+### Gateway
+
+```bash
+curl http://localhost:8085/actuator/health
+```
+
+### Users Service
+
+```bash
+curl http://localhost:8081/actuator/health
+```
+
+### Bookings Service
+
+```bash
+curl http://localhost:8082/actuator/health
+```
+
+---
+
+# H2 Console Access
+
+## Users Database
+
+URL:
+
+```text
+http://localhost:8081/h2-console
+```
+
+Configuration:
+
+```text
+JDBC URL: jdbc:h2:mem:usersdb
+Username: sa
+Password:
+```
+
+---
+
+## Bookings Database
+
+URL:
+
+```text
+http://localhost:8082/h2-console
+```
+
+Configuration:
+
+```text
+JDBC URL: jdbc:h2:mem:bookingsdb
+Username: sa
+Password:
+```
+
+---
+
+# Inter-Service Communication
+
+The `bookings-service` communicates with `users-service` using OpenFeign.
+
+Typical flow:
+
+```text
+Client Request
+      ↓
+API Gateway
+      ↓
+Bookings Service
+      ↓
+Feign Client
+      ↓
+Users Service
+```
+
+This architecture enables:
+
+* service decoupling
+* scalable deployments
+* centralized routing
+* fault-tolerant communication
+
+---
+
+# Resilience Strategy
+
+The project applies Resilience4j to external service calls.
+
+Implemented strategies:
+
+| Pattern            | Purpose                                  |
+| ------------------ | ---------------------------------------- |
+| Retry              | Automatically retries transient failures |
+| Circuit Breaker    | Prevents cascading failures              |
+| Timeout Protection | Avoids long blocking operations          |
+
+Benefits:
+
+* improved stability
+* graceful degradation
+* increased fault tolerance
+* reduced downstream pressure
+
+---
+
+# Dockerized Deployment
+
+Every microservice includes:
+
+* dedicated Dockerfile
+* isolated runtime
+* containerized deployment
+* environment-specific configuration
+
+Deployment is fully reproducible through Docker Compose.
+
+---
+
+# Build the Project Manually
+
+## Maven Build
+
+```bash
+mvn clean install
+```
+
+---
+
+## Run Individual Services
+
+### Discovery Service
+
+```bash
+cd discovery-service
+mvn spring-boot:run
+```
+
+### Users Service
+
+```bash
+cd users-service
+mvn spring-boot:run
+```
+
+### Bookings Service
+
+```bash
+cd bookings-service
+mvn spring-boot:run
+```
+
+### API Gateway
+
+```bash
+cd api-gateway
+mvn spring-boot:run
+```
+
+---
+
+# Engineering Highlights
+
+## Cloud-Native Concepts
+
+* Service Discovery
+* API Gateway Pattern
+* Decentralized Persistence
+* Fault Tolerance
+* Containerized Infrastructure
+* Service Isolation
+
+## Production-Oriented Design
+
+* modular architecture
+* scalable communication model
+* centralized access layer
+* independent service lifecycle
+* resilient external calls
+
+---
+
+# Future Improvements
+
+Potential production upgrades:
+
+* PostgreSQL or MySQL persistence
+* JWT authentication
+* Distributed tracing
+* Prometheus + Grafana monitoring
+* Centralized logging
+* Kubernetes deployment
+* CI/CD pipelines
+* Rate limiting
+* OAuth2/OpenID Connect
+* Distributed caching
+
+---
+
+# License
+
+MIT License
+
+---
+
+# Author
+
+Built as a Spring Cloud microservices architecture project focused on distributed systems fundamentals, resilient communication patterns, and Docker-based deployment workflows.
